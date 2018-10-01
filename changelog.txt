@@ -1,4 +1,7 @@
-2018.08.28
+2018.10.01
+	- fixed text selection with CTRL+SHIFT+RIGHT_ARROW
+
+2018.09.28
 	- add translated text statistics (number of letters, digits, whitespaces and punctuation marks)
 
 2018.01.08

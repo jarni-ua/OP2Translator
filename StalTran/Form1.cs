@@ -18,6 +18,7 @@ namespace StalTran
         private Settings m_settings;
         private StringTable m_stringTable;
         private bool m_ctrlPressed = false;
+        private bool m_shiftPressed = false;
 
         public MainForm()
         {
@@ -229,29 +230,30 @@ namespace StalTran
                 }
                 else if (e.Shift)
                 {
+                    m_shiftPressed = true;
+
                     if (e.KeyCode == Keys.Up)
                     {
+                        e.Handled = true;
                         for (int i = m_lbStringTable.SelectedIndex - 1; i >= 0; --i)
                         {
                             Item item = (Item)m_lbStringTable.Items[i];
                             if (m_settings.toEng && item.noE || !m_settings.toEng && item.noU)
                             {
                                 m_lbStringTable.SelectedIndex = i;
-                                e.Handled = true;
                                 break;
                             }
                         }
-
                     }
                     else if (e.KeyCode == Keys.Down)
                     {
+                        e.Handled = true;
                         for (int i = m_lbStringTable.SelectedIndex + 1; i < m_lbStringTable.Items.Count; ++i)
                         {
                             Item item = (Item)m_lbStringTable.Items[i];
                             if (m_settings.toEng && item.noE || !m_settings.toEng && item.noU)
                             {
                                 m_lbStringTable.SelectedIndex = i;
-                                e.Handled = true;
                                 break;
                             }
                         }
@@ -277,6 +279,10 @@ namespace StalTran
                     e.Handled = true;
                 }
             }
+            else if (e.Shift)
+            {
+                m_shiftPressed = true;
+            }
             else
             {
                 if (m_cbIngnoreIns.Checked && !e.Shift && e.KeyCode == Keys.Insert)
@@ -289,6 +295,10 @@ namespace StalTran
             if (!e.Control)
             {
                 m_ctrlPressed = false;
+            }
+            if (!e.Shift)
+            {
+                m_shiftPressed = false;
             }
         }
 
@@ -449,7 +459,8 @@ namespace StalTran
 
         private void m_rtbTranslation_SelectionChanged(object sender, EventArgs e)
         {
-            //return;
+            if (m_ctrlPressed && m_shiftPressed)
+                return;
 
             this.m_rtbTranslation.SelectionChanged -= new System.EventHandler(this.m_rtbTranslation_SelectionChanged);
             m_rtbTranslation.SelectionLength = m_rtbTranslation.SelectedText.Trim().Length;
