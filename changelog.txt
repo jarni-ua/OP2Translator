@@ -1,3 +1,6 @@
+2019.02.14
+	- UTF-8 support added. Polish and French languages support added.
+
 2018.10.01
 	- fixed text selection with CTRL+SHIFT+RIGHT_ARROW
 
