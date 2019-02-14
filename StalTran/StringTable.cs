@@ -11,7 +11,7 @@ using System.Xml.Serialization;
 namespace StalTran
 {
     public delegate void ItemStateChanged(bool isModified);
-    public delegate void ItemStatsChanged(WordStats.Stats wsUkr, WordStats.Stats wsEng);
+    public delegate void ItemStatsChanged(string lang, WordStats.Stats stats);
 
     public abstract class XmlItem
     {
@@ -111,34 +111,101 @@ namespace StalTran
         }
     }
 
+    public class LangItem
+    {
+        public LangItem(string str)
+        {
+            orig = curr = str;
+            translationRequired = false;
+            stats = new WordStats(str);
+        }
+
+        public LangItem(LangItem item)
+        {
+            orig = item.orig;
+            curr = item.curr;
+            translationRequired = item.translationRequired;
+            modified = item.modified;
+            stats = new WordStats(curr);
+        }
+
+        public string orig { get; set; }
+        public string curr { get; set; }
+        public bool translationRequired { get; set; }
+        public bool modified { get; set; }
+        public WordStats stats { get; set; }
+    }
+
+    public class LangComparer : IComparer<string>
+    {
+        public int Compare(string a, string b)
+        {
+            if (a.CompareTo(b) != 0)
+            {
+                int idxA = CalcIndex(a);
+                int idxB = CalcIndex(b);
+                if (idxA == 3 && idxB == 3)
+                    return a.CompareTo(b);
+                else
+                    return idxA.CompareTo(idxB);
+            }
+            else
+                return 0;
+        }
+
+        public static int CalcIndex(string s)
+        {
+            if (s == "rus") return 0;
+            if (s == "eng") return 1;
+            if (s == "ukr") return 2;
+            return 3;
+        }
+    }
+
     public class Item : XmlItem
     {
         public string id { get; private set; }
 
-        private string _rus = "";
-        private string _eng = "";
-        private string _ukr = "";
+        //! Actual values
+        private SortedDictionary<string, LangItem> _texts = new SortedDictionary<string, LangItem>(new LangComparer());
 
-        public string rus { get { return _rus; } set { _rus = value; CheckModified(); } }
-        public string eng { get { return _eng; } set { _eng = value; CheckModified(); } }
-        public string ukr { get { return _ukr; } set { _ukr = value; CheckModified(); } }
+        //! Sets new text value under language
+        public void set(string lang, string text)
+        {
+            //! Update text
+            LangItem item = _texts[lang];
+            item.curr = text;
+            item.modified = item.orig != item.curr;
+            CheckModified(item.modified);
 
-        private string rus_org = "";
-        private string eng_org = "";
-        private string ukr_org = "";
+            //! Update stats
+            item.stats.recalc(text);
+            itemStatsChangedHandler(lang, item.stats.diff());
+        }
 
-        public bool noE { get; private set; }
-        public bool noU { get; private set; }
-        
-        private List<XmlItem> cw_rus;
-        private List<XmlItem> cw_eng;
-        private List<XmlItem> cw_ukr;
+        //! Gets text value for language. If it doesn't exist, creates it out of rus text
+        public string get(string lang)
+        {
+            return getItem(lang).curr;
+        }
+
+        public LangItem getItem(string lang)
+        {
+            LangItem item;
+            if (_texts.TryGetValue(lang, out item))
+                return item;
+
+            //! Not there yet
+            item = new LangItem(_texts["rus"]);
+            _texts[lang] = item;
+            return item;
+        }
+        public bool translationRequired(string lang) { return getItem(lang).translationRequired; }
+
+        private Dictionary<string, List<XmlItem>> cw_lang = new Dictionary<string, List<XmlItem>>();
         private List<XmlItem> cw_post;
 
         private bool modified = false;
-
-        public WordStats wsUkr { get; private set; }
-        public WordStats wsEng { get; private set; }
 
         ItemStateChanged itemStateChangedHandler;
         ItemStatsChanged itemStatsChangedHandler;
@@ -148,26 +215,25 @@ namespace StalTran
             usable = true;
             this.itemStateChangedHandler = itemStateChangedHandler;
             this.itemStatsChangedHandler = itemStatsChangedHandler;
-            wsUkr = new WordStats("");
-            wsEng = new WordStats("");
         }
 
         public void CheckTranslation()
         {
-            noE = eng.StartsWith("=") || Regex.Matches(eng, @"[а-яА-ЯыЫъЪьЬёЁ]").Count > 0;
-            noU = ukr.StartsWith("=") || Regex.Matches(ukr, @"[ыЫёЁъЪ]").Count > 0;
+            foreach(KeyValuePair<string, LangItem> kv in _texts)
+            {
+                if (kv.Key == "ukr")
+                    kv.Value.translationRequired = kv.Value.curr.StartsWith("=") || Regex.Matches(kv.Value.curr, @"[ыЫёЁъЪ]").Count > 0;
+                else
+                    kv.Value.translationRequired = kv.Value.curr.StartsWith("=") || Regex.Matches(kv.Value.curr, @"[а-яА-ЯыЫъЪьЬёЁ]").Count > 0;
+            }
         }
 
-        private void CheckModified()
+        private void CheckModified(bool newlyModified)
         {
-            bool newlyModified = rus != rus_org || eng != eng_org || ukr != ukr_org;
             if (modified != newlyModified)
             {
                 itemStateChangedHandler(newlyModified);
             }
-            wsUkr.recalc(ukr != null ? ukr : "");
-            wsEng.recalc(eng != null ? eng : "");
-            itemStatsChangedHandler(wsUkr.diff(), wsEng.diff());
             modified = newlyModified;
         }
 
@@ -176,7 +242,7 @@ namespace StalTran
             //! Read root node
             xmlReader.Read();
             id = xmlReader.GetAttribute("id");
-            
+
             List<XmlItem> cw = new List<XmlItem>();
             while (xmlReader.Read())
             {
@@ -201,33 +267,10 @@ namespace StalTran
                             string name = xmlReader.Name;
                             xmlReader.Read();//! Move to content
 
-                            if (name == "rus")
-                            {
-                                rus = rus_org = fromXml(xmlReader.Value);
-                                cw_rus = cw;
-                            }
-                            else if (name == "eng")
-                            {
-                                eng = eng_org = fromXml(xmlReader.Value);
-                                if (eng == null) eng = eng_org = "===";
-                                cw_eng = cw;
-                                wsEng = new WordStats(eng);
-                            }
-                            else if (name == "ukr")
-                            {
-                                ukr = ukr_org = fromXml(xmlReader.Value);
-                                if (ukr == null) ukr = ukr_org = "===";
-                                cw_ukr = cw;
-                                wsUkr = new WordStats(ukr);
-                            }
-                            else if (name == "text")
-                            {
-                                rus = rus_org = fromXml(xmlReader.Value);
-                                cw_rus = cw;
-                            }
-                            else
-                                break;
-
+                            string value = fromXml(xmlReader.Value);
+                            if (value == null) value = "===";
+                            _texts[name] = new LangItem(value);
+                            cw_lang[name] = cw;
                             cw = new List<XmlItem>();
                         }
                         break;
@@ -244,27 +287,27 @@ namespace StalTran
             xmlWriter.WriteStartElement("string");
             xmlWriter.WriteAttributeString("id", id);
 
-            foreach (XmlItem i in cw_rus)
-                i.Store(xmlWriter);
-            xmlWriter.WriteElementString("rus", toXml(_rus));
-            rus_org = _rus;
-
-            foreach (XmlItem i in cw_eng)
-                i.Store(xmlWriter);
-            xmlWriter.WriteElementString("eng", toXml(_eng));
-            eng_org = _eng;
-
-            foreach (XmlItem i in cw_ukr)
-                i.Store(xmlWriter);
-            xmlWriter.WriteElementString("ukr", toXml(_ukr));
-            ukr_org = _ukr;
+            LangComparer cmp = new LangComparer();
+            foreach (KeyValuePair<string, LangItem> kv in _texts)
+            {
+                if (LangComparer.CalcIndex(kv.Key) < 3 || !kv.Value.curr.Equals(_texts["rus"].orig))
+                {
+                    List<XmlItem> cw = null;
+                    if (!cw_lang.TryGetValue(kv.Key, out cw))
+                        cw = cw_lang["ukr"];
+                    foreach (XmlItem i in cw)
+                        i.Store(xmlWriter);
+                    xmlWriter.WriteElementString(kv.Key, toXml(kv.Value.curr));
+                }
+                kv.Value.orig = kv.Value.curr;
+            }
 
             foreach (XmlItem i in cw_post)
                 i.Store(xmlWriter);
 
             xmlWriter.WriteEndElement();
 
-            CheckModified();
+            CheckModified(false);
         }
 
         private string fromXml(string src)
@@ -288,9 +331,7 @@ namespace StalTran
         public string path { get; set; }
         private int modifiedCount = 0;
 
-        public WordStats.Stats wsUkr = new WordStats.Stats();
-        public WordStats.Stats wsEng = new WordStats.Stats();
-
+        private Dictionary<string, WordStats.Stats> fileStats = new Dictionary<string, WordStats.Stats>();
         private ItemStateChanged itemStateChangedHandler;
         private ItemStatsChanged itemStatsChangedHandler;
 
@@ -307,7 +348,7 @@ namespace StalTran
                 return;
 
             XmlWriterSettings writerSettings = new XmlWriterSettings();
-            writerSettings.Encoding = Encoding.GetEncoding(1251);
+            writerSettings.Encoding = new UTF8Encoding(false);
             writerSettings.Indent = true;
             writerSettings.IndentChars = "\t";
             writerSettings.ConformanceLevel = headless ? ConformanceLevel.Fragment : ConformanceLevel.Document;
@@ -336,7 +377,7 @@ namespace StalTran
         {
             try
             {
-                StreamReader fileStream = new StreamReader(path, Encoding.GetEncoding(1251));
+                StreamReader fileStream = new StreamReader(path, Encoding.UTF8);
                 XmlReaderSettings settings = new XmlReaderSettings();
                 settings.ConformanceLevel = ConformanceLevel.Fragment;
                 XmlReader xmlReader = XmlReader.Create(fileStream, settings);
@@ -357,6 +398,15 @@ namespace StalTran
             return modifiedCount > 0;
         }
 
+        public WordStats.Stats getFileStats(string lang)
+        {
+            WordStats.Stats stats;
+            if (fileStats.TryGetValue(lang, out stats))
+                return stats;
+            stats = new WordStats.Stats();
+            fileStats[lang] = stats;
+            return stats;
+        }
         private void Load(XmlReader xmlReader)
         {
             items = new List<XmlItem>();
@@ -461,11 +511,16 @@ namespace StalTran
             itemStateChangedHandler(modifiedCount > 0);
         }
 
-        internal void ItemStatsChangedHandler(WordStats.Stats wsUkrDiff, WordStats.Stats wsEngDiff)
+        internal void ItemStatsChangedHandler(string lang, WordStats.Stats diff)
         {
-            wsUkr.recalc(wsUkrDiff);
-            wsEng.recalc(wsEngDiff);
-            itemStatsChangedHandler(wsUkr, wsEng);
+            WordStats.Stats stats;
+            if (!fileStats.TryGetValue(lang, out stats))
+            {
+                stats = new WordStats.Stats();
+                fileStats[lang] = stats;
+            }
+            stats.recalc(diff);
+            itemStatsChangedHandler(lang, stats);
         }
     }
 }

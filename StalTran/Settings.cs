@@ -12,7 +12,7 @@ namespace StalTran
     public class Settings
     {
         public string xmlLocation { get; set; }
-        public bool toEng { get; set; }
+        public string dstLang { get; set; }
         public bool ignoreIns { get; set; }
         public string lastSelectedFile { get; set; }
         public string lastSelectedStringId { get; set; }

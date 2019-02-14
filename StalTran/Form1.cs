@@ -15,14 +15,30 @@ namespace StalTran
 {
     public partial class MainForm : Form
     {
+        private class TranslationLanguage
+        {
+            public string tag { get; set; }
+            public string id { get; set; }
+        }
+
         private Settings m_settings;
         private StringTable m_stringTable;
         private bool m_ctrlPressed = false;
         private bool m_shiftPressed = false;
+        private List<TranslationLanguage> m_translationLanguages = new List<TranslationLanguage>();
 
         public MainForm()
         {
             InitializeComponent();
+
+            m_translationLanguages.Add(new TranslationLanguage() { tag = "eng", id = "en" });
+            m_translationLanguages.Add(new TranslationLanguage() { tag = "ukr", id = "uk" });
+            m_translationLanguages.Add(new TranslationLanguage() { tag = "pln", id = "pl" });
+            m_translationLanguages.Add(new TranslationLanguage() { tag = "fra", id = "fr" });
+            this.m_cbTranslationLanguage.DataSource = m_translationLanguages;
+            this.m_cbTranslationLanguage.DisplayMember = "tag";
+            this.m_cbTranslationLanguage.ValueMember = "id";
+            this.m_cbTranslationLanguage.DropDownStyle = ComboBoxStyle.DropDownList;
 
             m_settings = Settings.Load();
 
@@ -43,7 +59,11 @@ namespace StalTran
             {
                 m_nudFontSize.Value = m_settings.fontSize;
             }
-            m_lUkrEng.Text = m_settings.toEng ? "RUS -> ENG" : "RUS -> UKR";
+
+            if (m_settings.dstLang == null)
+                m_settings.dstLang = "eng";
+
+            m_cbTranslationLanguage.SelectedIndex = m_translationLanguages.FindIndex(language => language.tag.Equals(m_settings.dstLang, StringComparison.Ordinal));
             m_cbIngnoreIns.Checked = m_settings.ignoreIns;
 
             if (!string.IsNullOrWhiteSpace(m_settings.xmlLocation) && !string.IsNullOrWhiteSpace(m_settings.lastSelectedFile))
@@ -109,14 +129,14 @@ namespace StalTran
 
             Item item = (Item)m_lbStringTable.SelectedItem;
             m_settings.lastSelectedStringId = item.id;
-            m_rtbRus.Text = item.rus;
-            m_rtbTranslation.Text = m_settings.toEng ? item.eng : item.ukr;
+            m_rtbRus.Text = item.get("rus");
+            m_rtbTranslation.Text = item.get(m_settings.dstLang);
 
             m_rtbTranslation.SelectAll();
             m_rtbTranslation.SelectionBackColor = Color.White;
             m_rtbTranslation.DeselectAll();
 
-            foreach(Match match in Regex.Matches(m_rtbTranslation.Text, m_settings.toEng ? @"[а-яА-ЯъЪьЬёЁ]+" : @"[ыЫёЁъЪ]"))
+            foreach(Match match in Regex.Matches(m_rtbTranslation.Text, m_settings.dstLang != "ukr" ? @"[а-яА-ЯъЪьЬёЁ]+" : @"[ыЫёЁъЪ]"))
             {
                 m_rtbTranslation.Select(match.Index, match.Length);
                 m_rtbTranslation.SelectionBackColor = Color.Red;
@@ -179,15 +199,6 @@ namespace StalTran
             m_settings.fontSize = m_nudFontSize.Value;
         }
 
-        private void m_lUkrEng_Click(object sender, EventArgs e)
-        {
-            m_settings.toEng = !m_settings.toEng;
-            m_lUkrEng.Text = m_settings.toEng ? "RUS -> ENG" : "RUS -> UKR";
-            LoadStringId();
-            m_lbStringTable.Invalidate();
-            TableStatsChangedHandler(m_stringTable.wsUkr, m_stringTable.wsEng);
-        }
-
         private void m_lbStringTable_DrawItem(object sender, DrawItemEventArgs e)
         {
             ListBox lb = (ListBox)sender;
@@ -201,7 +212,7 @@ namespace StalTran
 
             // draw the background color you want
             // mine is set to olive, change it to whatever you want
-            if (m_settings.toEng && item.noE || !m_settings.toEng && item.noU)
+            if (item.translationRequired(m_settings.dstLang))
             {
                 if (e.State.HasFlag(DrawItemState.Selected))
                     g.FillRectangle(new SolidBrush(Color.DodgerBlue), e.Bounds);
@@ -238,7 +249,7 @@ namespace StalTran
                         for (int i = m_lbStringTable.SelectedIndex - 1; i >= 0; --i)
                         {
                             Item item = (Item)m_lbStringTable.Items[i];
-                            if (m_settings.toEng && item.noE || !m_settings.toEng && item.noU)
+                            if (item.translationRequired(m_settings.dstLang))
                             {
                                 m_lbStringTable.SelectedIndex = i;
                                 break;
@@ -251,7 +262,7 @@ namespace StalTran
                         for (int i = m_lbStringTable.SelectedIndex + 1; i < m_lbStringTable.Items.Count; ++i)
                         {
                             Item item = (Item)m_lbStringTable.Items[i];
-                            if (m_settings.toEng && item.noE || !m_settings.toEng && item.noU)
+                            if (item.translationRequired(m_settings.dstLang))
                             {
                                 m_lbStringTable.SelectedIndex = i;
                                 break;
@@ -304,12 +315,9 @@ namespace StalTran
 
         private void m_rtbTranslation_TextChanged(object sender, EventArgs e)
         {
-            if (m_settings.toEng)
-                ((Item)m_lbStringTable.SelectedItem).eng = m_rtbTranslation.Text;
-            else
-                ((Item)m_lbStringTable.SelectedItem).ukr = m_rtbTranslation.Text;
-
-            ((Item)m_lbStringTable.SelectedItem).CheckTranslation();
+            Item item = (Item)m_lbStringTable.SelectedItem;
+            item.set(m_settings.dstLang, m_rtbTranslation.Text);
+            item.CheckTranslation();
         }
 
         private void TableStateChangedHandler(bool isModified)
@@ -317,13 +325,8 @@ namespace StalTran
             btnSave.Enabled = isModified;
         }
 
-        private void TableStatsChangedHandler(WordStats.Stats wsUkr, WordStats.Stats wsEng)
+        private void TableStatsChangedHandler(string lang, WordStats.Stats stats)
         {
-            WordStats.Stats stats;
-            if (m_settings.toEng)
-                stats = wsEng;
-            else
-                stats = wsUkr;
             m_lWordCounter.Text = "Letters: " + stats.letters + ", Digits: " + stats.digits + ", Whitespaces: " + stats.whites + ", Puncts: " + stats.puncts;
         }
 
@@ -396,7 +399,7 @@ namespace StalTran
             src = src.Replace("&", "%26");
             src = src.Replace("#", "%23");
 
-            string url = "https://translate.googleapis.com/translate_a/single?client=gtx&sl=ru&tl=" + (m_settings.toEng ? "en" : "uk") + "&dt=t&q=" + src;
+            string url = "https://translate.googleapis.com/translate_a/single?client=gtx&sl=ru&tl=" + (((TranslationLanguage)m_cbTranslationLanguage.SelectedItem).id) + "&dt=t&q=" + src;
             var response = httpClient.GetAsync(new Uri(url)).Result;
 
             if (response.IsSuccessStatusCode)
@@ -427,7 +430,7 @@ namespace StalTran
                     value = value.Replace(" / ", "/");
 
                     // Some usual ukrainian translation bugs
-                    if (!m_settings.toEng)
+                    if (m_settings.dstLang == "ukr")
                     {
                         value = value.Replace("прицілом коліматора", "коліматорним прицілом");
                         value = value.Replace("стовбур", "ствол");
@@ -502,6 +505,20 @@ namespace StalTran
         private void wordCounter_Click(object sender, EventArgs e)
         {
 
+        }
+
+        private void m_cbTranslationLanguage_SelectedIndexChanged(object sender, EventArgs e)
+        {
+            if (m_settings == null || m_settings.dstLang == null)
+                return;
+
+//            TranslationLanguage lang = (TranslationLanguage);
+            m_settings.dstLang = m_cbTranslationLanguage.Text;
+            LoadStringId();
+            m_lbStringTable.Invalidate();
+            if (m_stringTable != null)
+                TableStatsChangedHandler(m_settings.dstLang, m_stringTable.getFileStats(m_settings.dstLang));
+            m_lbStringTable.Focus();
         }
     }
 }

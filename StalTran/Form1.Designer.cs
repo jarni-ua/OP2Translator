@@ -37,15 +37,15 @@
             this.m_rtbTranslation = new System.Windows.Forms.RichTextBox();
             this.btnFolder = new System.Windows.Forms.Button();
             this.splitContainer4 = new System.Windows.Forms.SplitContainer();
+            this.m_cbTranslationLanguage = new System.Windows.Forms.ComboBox();
+            this.m_lWordCounter = new System.Windows.Forms.Label();
             this.m_cbIngnoreIns = new System.Windows.Forms.CheckBox();
             this.btnTranslate = new System.Windows.Forms.Button();
             this.btnSave = new System.Windows.Forms.Button();
-            this.m_lUkrEng = new System.Windows.Forms.Label();
             this.m_nudFontSize = new System.Windows.Forms.NumericUpDown();
             this.m_ctxMenuTranslation = new System.Windows.Forms.ContextMenuStrip(this.components);
             this.addToContextReplacementToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
             this.addToAutomaticReplacementToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
-            this.m_lWordCounter = new System.Windows.Forms.Label();
             ((System.ComponentModel.ISupportInitialize)(this.splitContainer1)).BeginInit();
             this.splitContainer1.Panel1.SuspendLayout();
             this.splitContainer1.Panel2.SuspendLayout();
@@ -158,11 +158,11 @@
             // 
             // splitContainer4.Panel1
             // 
+            this.splitContainer4.Panel1.Controls.Add(this.m_cbTranslationLanguage);
             this.splitContainer4.Panel1.Controls.Add(this.m_lWordCounter);
             this.splitContainer4.Panel1.Controls.Add(this.m_cbIngnoreIns);
             this.splitContainer4.Panel1.Controls.Add(this.btnTranslate);
             this.splitContainer4.Panel1.Controls.Add(this.btnSave);
-            this.splitContainer4.Panel1.Controls.Add(this.m_lUkrEng);
             this.splitContainer4.Panel1.Controls.Add(this.m_nudFontSize);
             this.splitContainer4.Panel1.Controls.Add(this.btnFolder);
             // 
@@ -173,6 +173,25 @@
             this.splitContainer4.SplitterDistance = 35;
             this.splitContainer4.TabIndex = 3;
             this.splitContainer4.TabStop = false;
+            // 
+            // m_cbTranslationLanguage
+            // 
+            this.m_cbTranslationLanguage.FormattingEnabled = true;
+            this.m_cbTranslationLanguage.Location = new System.Drawing.Point(158, 9);
+            this.m_cbTranslationLanguage.Name = "m_cbTranslationLanguage";
+            this.m_cbTranslationLanguage.Size = new System.Drawing.Size(67, 21);
+            this.m_cbTranslationLanguage.TabIndex = 0;
+            this.m_cbTranslationLanguage.TabStop = false;
+            this.m_cbTranslationLanguage.SelectedIndexChanged += new System.EventHandler(this.m_cbTranslationLanguage_SelectedIndexChanged);
+            // 
+            // m_lWordCounter
+            // 
+            this.m_lWordCounter.AutoSize = true;
+            this.m_lWordCounter.Location = new System.Drawing.Point(449, 14);
+            this.m_lWordCounter.Name = "m_lWordCounter";
+            this.m_lWordCounter.Size = new System.Drawing.Size(0, 13);
+            this.m_lWordCounter.TabIndex = 7;
+            this.m_lWordCounter.Click += new System.EventHandler(this.wordCounter_Click);
             // 
             // m_cbIngnoreIns
             // 
@@ -187,7 +206,7 @@
             // 
             // btnTranslate
             // 
-            this.btnTranslate.Location = new System.Drawing.Point(231, 3);
+            this.btnTranslate.Location = new System.Drawing.Point(231, 4);
             this.btnTranslate.Name = "btnTranslate";
             this.btnTranslate.Size = new System.Drawing.Size(75, 32);
             this.btnTranslate.TabIndex = 6;
@@ -208,16 +227,6 @@
             this.btnSave.UseVisualStyleBackColor = true;
             this.btnSave.Click += new System.EventHandler(this.btnSave_Click);
             // 
-            // m_lUkrEng
-            // 
-            this.m_lUkrEng.AutoSize = true;
-            this.m_lUkrEng.Location = new System.Drawing.Point(159, 13);
-            this.m_lUkrEng.Name = "m_lUkrEng";
-            this.m_lUkrEng.Size = new System.Drawing.Size(68, 13);
-            this.m_lUkrEng.TabIndex = 0;
-            this.m_lUkrEng.Text = "RUS -> ENG";
-            this.m_lUkrEng.Click += new System.EventHandler(this.m_lUkrEng_Click);
-            // 
             // m_nudFontSize
             // 
             this.m_nudFontSize.Font = new System.Drawing.Font("Microsoft Sans Serif", 10F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(204)));
@@ -226,7 +235,7 @@
             0,
             0,
             0});
-            this.m_nudFontSize.Location = new System.Drawing.Point(312, 9);
+            this.m_nudFontSize.Location = new System.Drawing.Point(312, 8);
             this.m_nudFontSize.Maximum = new decimal(new int[] {
             28,
             0,
@@ -271,15 +280,6 @@
             this.addToAutomaticReplacementToolStripMenuItem.Size = new System.Drawing.Size(236, 22);
             this.addToAutomaticReplacementToolStripMenuItem.Text = "Add to automatic replacement";
             // 
-            // m_lWordCounter
-            // 
-            this.m_lWordCounter.AutoSize = true;
-            this.m_lWordCounter.Location = new System.Drawing.Point(449, 14);
-            this.m_lWordCounter.Name = "m_lWordCounter";
-            this.m_lWordCounter.Size = new System.Drawing.Size(0, 13);
-            this.m_lWordCounter.TabIndex = 7;
-            this.m_lWordCounter.Click += new System.EventHandler(this.wordCounter_Click);
-            // 
             // MainForm
             // 
             this.AutoScaleDimensions = new System.Drawing.SizeF(6F, 13F);
@@ -322,7 +322,6 @@
         private System.Windows.Forms.Button btnFolder;
         private System.Windows.Forms.SplitContainer splitContainer4;
         private System.Windows.Forms.NumericUpDown m_nudFontSize;
-        private System.Windows.Forms.Label m_lUkrEng;
         private System.Windows.Forms.Button btnSave;
         private System.Windows.Forms.Button btnTranslate;
         private System.Windows.Forms.CheckBox m_cbIngnoreIns;
@@ -330,6 +329,7 @@
         private System.Windows.Forms.ToolStripMenuItem addToContextReplacementToolStripMenuItem;
         private System.Windows.Forms.ToolStripMenuItem addToAutomaticReplacementToolStripMenuItem;
         private System.Windows.Forms.Label m_lWordCounter;
+        private System.Windows.Forms.ComboBox m_cbTranslationLanguage;
     }
 }
 
