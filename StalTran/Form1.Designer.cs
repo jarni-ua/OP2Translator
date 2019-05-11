@@ -131,7 +131,6 @@
             this.m_rtbTranslation.Size = new System.Drawing.Size(931, 264);
             this.m_rtbTranslation.TabIndex = 0;
             this.m_rtbTranslation.Text = "";
-            this.m_rtbTranslation.SelectionChanged += new System.EventHandler(this.m_rtbTranslation_SelectionChanged);
             this.m_rtbTranslation.TextChanged += new System.EventHandler(this.m_rtbTranslation_TextChanged);
             this.m_rtbTranslation.MouseUp += new System.Windows.Forms.MouseEventHandler(this.m_rtbTranslation_MouseUp);
             // 

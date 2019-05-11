@@ -162,6 +162,13 @@ namespace StalTran
         }
     }
 
+    public interface INotificationReceiver
+    {
+        void translationRequired(string lang, int incdec);
+        void statsChanged(string lang, WordStats.Stats stats);
+        void stateChanged(bool isChanged);
+    }
+
     public class Item : XmlItem
     {
         public string id { get; private set; }
@@ -180,7 +187,7 @@ namespace StalTran
 
             //! Update stats
             item.stats.recalc(text);
-            itemStatsChangedHandler(lang, item.stats.diff());
+            notificationReceiver.statsChanged(lang, item.stats.diff());
         }
 
         //! Gets text value for language. If it doesn't exist, creates it out of rus text
@@ -204,27 +211,27 @@ namespace StalTran
 
         private Dictionary<string, List<XmlItem>> cw_lang = new Dictionary<string, List<XmlItem>>();
         private List<XmlItem> cw_post;
-
+        private INotificationReceiver notificationReceiver;
         private bool modified = false;
 
-        ItemStateChanged itemStateChangedHandler;
-        ItemStatsChanged itemStatsChangedHandler;
-
-        public Item(ItemStateChanged itemStateChangedHandler, ItemStatsChanged itemStatsChangedHandler)
+        public Item(INotificationReceiver notificationReceiver)
         {
             usable = true;
-            this.itemStateChangedHandler = itemStateChangedHandler;
-            this.itemStatsChangedHandler = itemStatsChangedHandler;
+            this.notificationReceiver = notificationReceiver;
         }
 
         public void CheckTranslation()
         {
             foreach(KeyValuePair<string, LangItem> kv in _texts)
             {
+                bool prevState = kv.Value.translationRequired;
                 if (kv.Key == "ukr")
-                    kv.Value.translationRequired = kv.Value.curr.StartsWith("=") || Regex.Matches(kv.Value.curr, @"[ыЫёЁъЪ]").Count > 0;
+                    kv.Value.translationRequired = kv.Value.curr.StartsWith("=") || Regex.Matches(kv.Value.curr, @"[ыЫёЁъЪэЭ]").Count > 0;
                 else
                     kv.Value.translationRequired = kv.Value.curr.StartsWith("=") || Regex.Matches(kv.Value.curr, @"[а-яА-ЯыЫъЪьЬёЁ]").Count > 0;
+
+                if (prevState != kv.Value.translationRequired)
+                    notificationReceiver.translationRequired(kv.Key, prevState ? -1 : 1);
             }
         }
 
@@ -232,7 +239,7 @@ namespace StalTran
         {
             if (modified != newlyModified)
             {
-                itemStateChangedHandler(newlyModified);
+                notificationReceiver.stateChanged(newlyModified);
             }
             modified = newlyModified;
         }
@@ -321,7 +328,7 @@ namespace StalTran
         }
     }
 
-    public class StringTable
+    public class StringTable : INotificationReceiver
     {
         internal List<XmlItem> header = new List<XmlItem>();
         internal List<XmlItem> items { get; private set; }
@@ -332,6 +339,7 @@ namespace StalTran
         private int modifiedCount = 0;
 
         private Dictionary<string, WordStats.Stats> fileStats = new Dictionary<string, WordStats.Stats>();
+        private Dictionary<string, int> translationRequired = new Dictionary<string, int>();
         private ItemStateChanged itemStateChangedHandler;
         private ItemStatsChanged itemStatsChangedHandler;
 
@@ -407,6 +415,15 @@ namespace StalTran
             fileStats[lang] = stats;
             return stats;
         }
+
+        public int getTranslationRequired(string lang)
+        {
+            if (translationRequired.ContainsKey(lang))
+                return translationRequired[lang];
+            translationRequired[lang] = 0;
+            return 0;
+        }
+
         private void Load(XmlReader xmlReader)
         {
             items = new List<XmlItem>();
@@ -479,7 +496,7 @@ namespace StalTran
                         break;
                     case XmlNodeType.Element:
                         {
-                            item = new Item(ItemStateChangedHandler, ItemStatsChangedHandler);
+                            item = new Item(this);
                             item.Load(xmlReader.ReadSubtree());
                         }
                         break;
@@ -505,13 +522,13 @@ namespace StalTran
             }
         }
 
-        internal void ItemStateChangedHandler(bool isChanged)
+        void INotificationReceiver.stateChanged(bool isChanged)
         {
             modifiedCount += (isChanged ? 1 : -1);
             itemStateChangedHandler(modifiedCount > 0);
         }
 
-        internal void ItemStatsChangedHandler(string lang, WordStats.Stats diff)
+        void INotificationReceiver.statsChanged(string lang, WordStats.Stats diff)
         {
             WordStats.Stats stats;
             if (!fileStats.TryGetValue(lang, out stats))
@@ -521,6 +538,19 @@ namespace StalTran
             }
             stats.recalc(diff);
             itemStatsChangedHandler(lang, stats);
+        }
+
+        void INotificationReceiver.translationRequired(string lang, int incdec)
+        {
+            if (!translationRequired.ContainsKey(lang))
+                translationRequired[lang] = 0;
+            
+            int currValue = translationRequired[lang];
+            currValue += incdec;
+            if (currValue < 0)
+                currValue = 0;
+
+            translationRequired[lang] = currValue;
         }
     }
 }

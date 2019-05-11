@@ -104,7 +104,7 @@ namespace StalTran
                         found = true;
                     }
                 }
-                if (!found)
+                if (!found && m_lbStringTable.Items.Count > 0)
                 {
                     m_lbStringTable.SelectedIndex = 0;
                 }
@@ -327,7 +327,7 @@ namespace StalTran
 
         private void TableStatsChangedHandler(string lang, WordStats.Stats stats)
         {
-            m_lWordCounter.Text = "Letters: " + stats.letters + ", Digits: " + stats.digits + ", Whitespaces: " + stats.whites + ", Puncts: " + stats.puncts;
+            m_lWordCounter.Text = "Left: " + m_stringTable.getTranslationRequired(lang) + ", Letters: " + stats.letters + ", Digits: " + stats.digits + ", Whitespaces: " + stats.whites + ", Puncts: " + stats.puncts;
         }
 
         private void btnTranslate_Click(object sender, EventArgs e)
@@ -458,16 +458,6 @@ namespace StalTran
             }
             else
                 return src;
-        }
-
-        private void m_rtbTranslation_SelectionChanged(object sender, EventArgs e)
-        {
-            if (m_ctrlPressed && m_shiftPressed)
-                return;
-
-            this.m_rtbTranslation.SelectionChanged -= new System.EventHandler(this.m_rtbTranslation_SelectionChanged);
-            m_rtbTranslation.SelectionLength = m_rtbTranslation.SelectedText.Trim().Length;
-            this.m_rtbTranslation.SelectionChanged += new System.EventHandler(this.m_rtbTranslation_SelectionChanged);
         }
 
         private void m_rtbTranslation_MouseUp(object sender, MouseEventArgs e)
