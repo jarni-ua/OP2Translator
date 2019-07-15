@@ -1,3 +1,6 @@
+2019.07.15
+	- Another update to response parser
+
 2019.06.25
 	- updated GoogleTransate API response parser to new (experimental) response format
 
