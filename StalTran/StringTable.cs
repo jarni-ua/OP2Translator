@@ -297,11 +297,12 @@ namespace StalTran
             LangComparer cmp = new LangComparer();
             foreach (KeyValuePair<string, LangItem> kv in _texts)
             {
-                if (LangComparer.CalcIndex(kv.Key) < 3 || !kv.Value.curr.Equals(_texts["rus"].orig))
+                //! Store always if rus or differs from rus
+                if (LangComparer.CalcIndex(kv.Key) == 0 || !kv.Value.curr.Equals(_texts["rus"].orig))
                 {
                     List<XmlItem> cw = null;
                     if (!cw_lang.TryGetValue(kv.Key, out cw))
-                        cw = cw_lang["ukr"];
+                        cw = cw_lang["rus"];
                     foreach (XmlItem i in cw)
                         i.Store(xmlWriter);
                     xmlWriter.WriteElementString(kv.Key, toXml(kv.Value.curr));
