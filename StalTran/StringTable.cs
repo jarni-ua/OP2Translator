@@ -113,10 +113,12 @@ namespace StalTran
 
     public class LangItem
     {
-        public LangItem(string str)
+        public LangItem(string str, bool from_file)
         {
             orig = curr = str;
             translationRequired = false;
+            fromFile = from_file;
+            modified = false;
             stats = new WordStats(str);
         }
 
@@ -126,6 +128,7 @@ namespace StalTran
             curr = item.curr;
             translationRequired = item.translationRequired;
             modified = item.modified;
+            fromFile = false;
             stats = new WordStats(curr);
         }
 
@@ -133,7 +136,13 @@ namespace StalTran
         public string curr { get; set; }
         public bool translationRequired { get; set; }
         public bool modified { get; set; }
+        public bool fromFile { get; set; }
         public WordStats stats { get; set; }
+
+        public bool mustBeStored()
+        {
+            return fromFile || curr.StartsWith("===") || curr != orig;
+        }
     }
 
     public class LangComparer : IComparer<string>
@@ -275,8 +284,15 @@ namespace StalTran
                             xmlReader.Read();//! Move to content
 
                             string value = fromXml(xmlReader.Value);
-                            if (value == null) value = "===";
-                            _texts[name] = new LangItem(value);
+                            if (name != "rus" && (value == null || value == "==="))
+                            {
+                                value = "===" + _texts["rus"].orig;
+                                _texts[name] = new LangItem(value, false);
+                            }
+                            else
+                            {
+                                _texts[name] = new LangItem(value, true);
+                            }
                             cw_lang[name] = cw;
                             cw = new List<XmlItem>();
                         }
@@ -294,11 +310,13 @@ namespace StalTran
             xmlWriter.WriteStartElement("string");
             xmlWriter.WriteAttributeString("id", id);
 
-            LangComparer cmp = new LangComparer();
             foreach (KeyValuePair<string, LangItem> kv in _texts)
             {
-                //! Store always if rus or differs from rus
-                if (LangComparer.CalcIndex(kv.Key) == 0 || !kv.Value.curr.Equals(_texts["rus"].orig))
+                //! Store if:
+                //!  1. rus or 
+                //!  2. differs from rus and not === only or
+                //!  3. was orifinally in file (do not erase what was there)
+                if (kv.Value.mustBeStored())
                 {
                     List<XmlItem> cw = null;
                     if (!cw_lang.TryGetValue(kv.Key, out cw))
@@ -308,6 +326,7 @@ namespace StalTran
                     xmlWriter.WriteElementString(kv.Key, toXml(kv.Value.curr));
                 }
                 kv.Value.orig = kv.Value.curr;
+                kv.Value.fromFile = true;
             }
 
             foreach (XmlItem i in cw_post)

@@ -1,3 +1,6 @@
+2020.05.08
+	- no changes done to any translation if it was not modified in app
+
 2020.03.16
 	- updated GoogleTransate API response parser
 	- ukr\eng translations are not written if they are same as rus
