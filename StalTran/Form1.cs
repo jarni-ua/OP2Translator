@@ -10,6 +10,8 @@ using System.Net.Http.Headers;
 using System.Text;
 using System.Text.RegularExpressions;
 using System.Windows.Forms;
+using Newtonsoft.Json;
+using Newtonsoft.Json.Linq;
 
 namespace StalTran
 {
@@ -19,6 +21,12 @@ namespace StalTran
         {
             public string tag { get; set; }
             public string id { get; set; }
+        }
+
+        private class TranslateUnit
+        {
+            public string to { get; set; }
+            public string from { get; set; }
         }
 
         private Settings m_settings;
@@ -420,10 +428,13 @@ namespace StalTran
                 // [[["Справа є, не дуже важкий. ","Дело есть, не очень тяжёлое.",null,null,0],["Тут до мене туриста іноземного привезти хочуть. ","Тут ко мне туриста иностранного привезти хотят.",null,null,0],["Він грошенят моїм корешам підкинув, щоб на Зону подивитися. ","Он деньжат моим корешам подкинул, чтоб на Зону посмотреть.",null,null,0],["Ну і там, де водити його будуть, треба почистити район від мутантів. ","Ну и там, где водить его будут, надо почистить район от мутантов.",null,null,0],["Візьмешся?","Возьмёшься?",null,null,0]],null,"ru"]
                 // [[["The point is not very hard. ","Дело есть, не очень тяжёлое.",null,null,3,null,null,null,[[["5a33c829bc6c1c36fc0b6b87510f19e1","TODO"]]]],["Here they want to bring a foreign tourist to me. ","Тут ко мне туриста иностранного привезти хотят.",null,null,3,null,null,null,[[["5a33c829bc6c1c36fc0b6b87510f19e1","TODO"]]]],["He made some money to my chums, to look at the Zone. ","Он деньжат моим корешам подкинул, чтоб на Зону посмотреть.",null,null,3,null,null,null,[[["5a33c829bc6c1c36fc0b6b87510f19e1","TODO"]]]],["Well, wherever it will be led, it is necessary to clean the area from mutants. ","Ну и там, где водить его будут, надо почистить район от мутантов.",null,null,3,null,null,null,[[["5a33c829bc6c1c36fc0b6b87510f19e1","TODO"]]]],["Will you take it?","Возьмёшься?",null,null,3,null,null,null,[[["5a33c829bc6c1c36fc0b6b87510f19e1","TODO"]]]]],null,"ru"]
                 // [[["cartouches","патроны",null,null,3,null,null,null,[[["8caa42f5a9df53968033bf99609e44f6","tea_ru_en_2019q2.md"]],[["124705b4b7a55ca503ac35d07bb227ff","en_fr_2019q4.md"]]]]],null,"ru",null,null,null,null,[]]
+                string validJson = "{ \"units\": " + responseString + "}";
+                JObject responseResult = JObject.Parse(validJson);
+                IList<JToken> units = responseResult["units"].First().Children().ToList();
                 string dst = "";
-                foreach (Match match in Regex.Matches(responseString, @"\[""(.*?)"","".*?"",null,null,[0-9]+"))
+                foreach (JToken unit in units)
                 {
-                    string value = match.Groups[1].Value;
+                    string value = unit.First.ToString();
                     // & is replaced by \u0026, # by \u0023, they must be replaced back
                     value = value.Replace("\\u0026", "&");
                     value = value.Replace("\\u0023", "#");
